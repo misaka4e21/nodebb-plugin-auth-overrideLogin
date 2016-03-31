@@ -1,0 +1,15 @@
+{
+  "url": "Absolute URL to your plugin or a Github repository",
+  "library": "./library.js",
+  "staticDirs": {
+  },
+  "less": [
+  ],
+  "hooks": [
+    { "hook": "action:auth.overrideLogin", "method": "auth" }
+  ],
+  "scripts": [
+  ],
+  "acpScripts": [
+  ]
+}
