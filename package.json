@@ -1,6 +1,6 @@
 {
   "name": "nodebb-plugin-auth-overridelogin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "nodebb plugin for override login",
   "repository": {
     "type": "git",
@@ -13,7 +13,7 @@
   "nbbpm": {
     "compatibility": "^1.0.0"
   },
-  "keywords": [],
+  "keywords": ["nodebb","auth","overridelogin"],
   "author": "Holly <hl4god@gmail.com>",
-  "license": "ISC"
+  "license": "MIT"
 }

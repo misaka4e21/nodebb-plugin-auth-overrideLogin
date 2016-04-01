@@ -1,12 +1,19 @@
 {
-  "url": "Absolute URL to your plugin or a Github repository",
+  "url": "https://registry.npmjs.org/nodebb-plugin-auth-overridelogin",
   "library": "./library.js",
   "staticDirs": {
   },
   "less": [
   ],
   "hooks": [
-    { "hook": "action:auth.overrideLogin", "method": "auth" }
+    {
+      "hook": "action:auth.overrideLogin",
+      "method": "auth"
+    },
+    {
+      "hook": "static:app.load",
+      "method": "load"
+    }
   ],
   "scripts": [
   ],
