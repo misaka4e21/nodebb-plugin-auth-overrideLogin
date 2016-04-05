@@ -213,7 +213,10 @@ function signinWithPhone(req, username, password, next) {//手机号登录
             console.log("user202:", user);
             var uname;
             if (!users || !users.length) { //系统里没有这个用户则创建
-                uname = user.userID;
+                //uname = user.userID;
+                //uname 替换为profile.id 保持4位,不足4位前面补0
+                var userId = ''+user.id;
+                uname = '0000'.slice(userId.length)+userId;
                 User.create({
                     username: uname,
                     password: const_pwd,
