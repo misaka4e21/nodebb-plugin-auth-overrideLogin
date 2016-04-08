@@ -221,6 +221,7 @@ function signinWithPhone(req, username, password, next) {//手机号登录
                     username: uname,
                     password: const_pwd,
                     fullname: user.nick,
+                    picture:user.avatar,
                     phone: username
                 }, function (err, _uid) {
                     if (err) {
