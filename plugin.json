@@ -1,10 +1,6 @@
 {
   "url": "https://registry.npmjs.org/nodebb-plugin-auth-overridelogin",
   "library": "./library.js",
-  "staticDirs": {
-  },
-  "less": [
-  ],
   "hooks": [
     {
       "hook": "action:auth.overrideLogin",
@@ -14,9 +10,5 @@
       "hook": "static:app.load",
       "method": "load"
     }
-  ],
-  "scripts": [
-  ],
-  "acpScripts": [
   ]
 }
