@@ -53,10 +53,14 @@ var User = module.parent.require("./user"),
 
         //App 登录接口
         router.post("/user/login", controllers.authentication.login);
+
+        //通过token登录
+        router.get("/user/login", controllers.authentication.login);
         app.use(router);
 
     };
     AuthOverrideLogin.auth = function() {
+        console.log("arguments63:", arguments);
         passport.use(new passportLocal({
             passReqToCallback: true
         }, signinWithCode));
@@ -92,7 +96,7 @@ function getSmsCode(body, callback) {
             callback(res.r);
 
         });
-};
+}
 
 
 function signIn(body, callback) {
@@ -184,9 +188,116 @@ function signinWithUserName(req, username, password, next) { //用户名登录
         }
     ], next);
 
-};
+}
 
+function signinWithToken(req, token, next) { //Token登录
+    var uid, userData = {};
+    console.log("Sign in With Token........");
+    async.waterfall([
+        function(next) {
+            signIn({
+                token: token
+            }, next);
+        },
+        function(user, next) {
+            console.log("user181:", user);
+            var pno = user.pno;
+            //此时username 就是phone
+            //通过phone拿到uid
+            console.log("user.pno:", user.pno);
+            console.log("pno:", pno);
+            if (!pno) {
+                //next(new Error('[[error:no-user]]'));
+                next(new Error("用户手机号不存在"));
+            }
+            User.getUidByPhone(pno, function(err, _uid) {
+                next(err, _uid, user);
+            });
+        },
+        function(_uid, user, next) {
+            //通过uid 拿到username
+            console.log('_uid189:', _uid);
+            if (_uid) {
+                uid = _uid;
+                User.getUsernamesByUids([_uid], function(err, users) {
+                    next(err, users, user);
+                });
+            } else {
+                //
+                next(null, null, user);
+            }
 
+        },
+        function(users, user, next) {
+            console.log("users201:", users);
+            console.log("user202:", user);
+            var uname;
+            if (!users || !users.length) { //系统里没有这个用户则创建
+                //uname = user.userID;
+                //uname 替换为profile.id 保持4位,不足4位前面补0
+                var userId = '' + user.id;
+                uname = '0000'.slice(userId.length) + userId;
+                User.create({
+                    username: uname,
+                    password: const_pwd,
+                    fullname: user.nick,
+                    picture: user.avatar,
+                    phone: user.pno //从username 修改为pno手机号
+                }, function(err, _uid) {
+                    if (err) {
+                        return next(new Error('[[error:no-user]]'));
+                    }
+                    uid = _uid;
+                    User.auth.logAttempt(uid, req.ip, next);
+                    //next();
+                });
+            } else {
+                uname = users[0];
+                User.auth.logAttempt(uid, req.ip, next);
+                //next()
+            }
+
+        },
+        function(next) {
+            async.parallel({
+                userData: function(next) {
+                    db.getObjectFields('user:' + uid, ['password', 'banned', 'passwordExpiry'], next);
+                },
+                isAdmin: function(next) {
+                    User.isAdministrator(uid, next);
+                }
+            }, next);
+        },
+        function(result, next) {
+            userData = result.userData;
+            userData.uid = uid;
+            userData.isAdmin = result.isAdmin;
+
+            if (!result.isAdmin && parseInt(meta.config.allowLocalLogin, 10) === 0) {
+                return next(new Error('[[error:local-login-disabled]]'));
+            }
+
+            if (!userData || !userData.password) {
+                return next(new Error('[[error:invalid-user-data]]'));
+            }
+            if (userData.banned && parseInt(userData.banned, 10) === 1) {
+                return next(new Error('[[error:user-banned]]'));
+            }
+            //Password.compare(password, userData.password, next);
+            Password.compare(const_pwd, userData.password, next);
+        },
+        function(passwordMatch, next) {
+            if (!passwordMatch) {
+                return next(new Error('[[error:invalid-password]]'));
+            }
+            User.auth.clearLoginAttempts(uid);
+            console.log("登录成功");
+            req.redirectTo = "/";
+            next(null, userData, '[[success:authentication-successful]]');
+        }
+    ], next);
+
+}
 //使用Freebacking的用户名密码登录   或者手机号验证码
 function signinWithPhone(req, username, password, next) { //手机号登录
     console.log("signinWithPhone......");
@@ -340,101 +451,19 @@ function signinWithCode(req, username, password, next) {
     if (!username) {
         return next(new Error('[[error:invalid-username]]'));
     }
-    //var userslug = utils.slugify(username);
-    //var uid, userData = {};
+    if (username === 'token' && password) {
+        //采用Token认证
+        return signinWithToken(req, password, next);
+    }
     //正则判断 手机号还是用户ID
     if (/(13|14|15|17|18)[0-9]{9}/.test(username)) { //手机号登录
-        console.log("111111");
         return signinWithPhone(req, username, password, next);
     } else { //用户名登录
         if (username.length > 5) { //使用freebacking账户登录
-            console.log("222222");
             return signinWithPhone(req, username, password, next);
         } else { //使用Nodebb系统用户账户登录
-            console.log("3333");
             return signinWithUserName(req, username, password, next);
         }
     }
 
-    /*
-     async.waterfall([
-     function (next) {
-     User.isPasswordValid(password, next);
-     },
-     function (next) {
-     User.getUidByUserslug(userslug, next);
-     },
-     function (_uid, next) {
-     console.log("_uid=============:", _uid);
-     if (!_uid) {
-     //如果不存在,则请求接口验证 手机号验证码
-     async.waterfall([
-     function (next) {
-     signIn({pno: username, smsCode: password}, next);
-     },
-     function (user, next) {
-     User.create({username: username, password: const_pwd, fullname: user.nick}, next);
-
-     }], function (err, __uid) {
-     if (err) {
-     return next(new Error('[[error:no-user]]'));
-     }
-     uid = __uid;
-     password = const_pwd; //手机用户统一修改密码为常量
-     User.auth.logAttempt(uid, req.ip, next);
-     //return;
-     });
-     //return next(new Error('[[error:no-user]]'));
-     } else if (_uid !== 1) { //存在 若非管理员 则手机号验证登录
-     signIn({pno: username, smsCode: password}, function (err, user) {
-     if (err) {
-     return next(new Error('[[error:no-user]]'));
-     }
-     uid = _uid;
-     password = const_pwd; //手机用户统一修改密码为常量
-     User.auth.logAttempt(uid, req.ip, next);
-     //return;
-     });
-     } else {
-     uid = _uid;
-     User.auth.logAttempt(uid, req.ip, next);
-     }
-
-     },
-     function (next) {
-     async.parallel({
-     userData: function (next) {
-     db.getObjectFields('user:' + uid, ['password', 'banned', 'passwordExpiry'], next);
-     },
-     isAdmin: function (next) {
-     User.isAdministrator(uid, next);
-     }
-     }, next);
-     },
-     function (result, next) {
-     userData = result.userData;
-     userData.uid = uid;
-     userData.isAdmin = result.isAdmin;
-
-     if (!result.isAdmin && parseInt(meta.config.allowLocalLogin, 10) === 0) {
-     return next(new Error('[[error:local-login-disabled]]'));
-     }
-
-     if (!userData || !userData.password) {
-     return next(new Error('[[error:invalid-user-data]]'));
-     }
-     if (userData.banned && parseInt(userData.banned, 10) === 1) {
-     return next(new Error('[[error:user-banned]]'));
-     }
-     Password.compare(password, userData.password, next);
-     },
-     function (passwordMatch, next) {
-     if (!passwordMatch) {
-     return next(new Error('[[error:invalid-password]]'));
-     }
-     User.auth.clearLoginAttempts(uid);
-     next(null, userData, '[[success:authentication-successful]]');
-     }
-     ], next);
-     */
-};
+}

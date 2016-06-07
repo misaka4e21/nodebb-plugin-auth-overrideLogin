@@ -1,6 +1,6 @@
 {
   "name": "nodebb-plugin-auth-overridelogin",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "nodebb plugin for override login",
   "repository": {
     "type": "git",
