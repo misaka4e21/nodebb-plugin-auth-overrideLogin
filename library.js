@@ -295,7 +295,14 @@ function signinWithToken(req, token, next) { //Token登录
             req.redirectTo = "/";
             next(null, userData, '[[success:authentication-successful]]');
         }
-    ], next);
+    ], function(err,userData,msg){
+      if(err){
+        req.redirectTo ="/";
+        next(null,null,'/');
+        return;
+      }
+      next(null, userData, msg);
+    });//], next);
 
 }
 //使用Freebacking的用户名密码登录   或者手机号验证码
